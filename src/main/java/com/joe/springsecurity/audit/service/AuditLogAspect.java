@@ -2,7 +2,6 @@ package com.joe.springsecurity.audit.service;
 
 import com.joe.springsecurity.audit.model.AuditLog;
 import com.joe.springsecurity.audit.repo.AuditLogRepository;
-import com.joe.springsecurity.inventory.repo.InventoryRepository;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;

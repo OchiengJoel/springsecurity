@@ -1,6 +1,7 @@
 package com.joe.springsecurity.auth.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.joe.springsecurity.company.model.Company;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

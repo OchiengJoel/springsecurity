@@ -19,11 +19,11 @@ public class Company implements Serializable {
     @Column(name = "name", unique = true)
     private String name;
 
-    @OneToMany(mappedBy = "company")
+    @OneToMany(mappedBy = "company")  // The mappedBy should refer to the 'company' field in InventoryItem
     private Set<UserCompany> userCompanies = new HashSet<>();
 
-    @OneToMany(mappedBy = "company")
-    private Set<InventoryItem> inventories = new HashSet<>(); // Assuming Inventory is another entity for inventory management
+    @OneToMany(mappedBy = "company")  // Similarly, the 'company' field in InventoryItem
+    private Set<InventoryItem> inventories = new HashSet<>();  // The company owns many inventory items
 
     public Long getId() {
         return id;

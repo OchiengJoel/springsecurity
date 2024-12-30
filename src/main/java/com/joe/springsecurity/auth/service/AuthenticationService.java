@@ -7,11 +7,15 @@ import com.joe.springsecurity.auth.model.Token;
 import com.joe.springsecurity.auth.model.User;
 import com.joe.springsecurity.auth.repo.TokenRepository;
 import com.joe.springsecurity.auth.repo.UserRepository;
+import com.joe.springsecurity.company.model.Company;
+import com.joe.springsecurity.company.repo.CompanyRepository;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -29,13 +33,17 @@ public class AuthenticationService {
     private final JwtService jwtService;
     private final TokenRepository tokenRepository;
     private final AuthenticationManager authenticationManager;
+    private final CompanyRepository companyRepository; // Inject CompanyRepository to manage companies
+    private final UserRepository userRepository;
 
-    public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, TokenRepository tokenRepository, AuthenticationManager authenticationManager) {
+    public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, TokenRepository tokenRepository, AuthenticationManager authenticationManager, CompanyRepository companyRepository, UserRepository userRepository) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.tokenRepository = tokenRepository;
         this.authenticationManager = authenticationManager;
+        this.companyRepository = companyRepository; // Initialize the Company repository
+        this.userRepository = userRepository;
     }
 
     // User Authentication
@@ -50,6 +58,11 @@ public class AuthenticationService {
         // Get user details from database
         User user = repository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Ensure the user has companies assigned (i.e., they are linked to a company)
+        if (user.getCompanies().isEmpty()) {
+            throw new RuntimeException("User does not belong to any company");
+        }
 
         // Generate new JWT tokens
         String accessToken = jwtService.generateAccessToken(user);
@@ -85,8 +98,26 @@ public class AuthenticationService {
         }
         user.setRoles(roles);  // Set the roles for the user
 
-        // Save user to the database
+        // Check if this is the first registration and assign the default companies
         user = repository.save(user); // Ensure that roles are persisted
+
+        // Automatically assign the default companies
+        if (companyRepository.count() == 0) {
+            Company companyA = new Company();
+            companyA.setName("Company A");
+            companyRepository.save(companyA);
+
+            Company companyB = new Company();
+            companyB.setName("Company B");
+            companyRepository.save(companyB);
+        }
+
+        // Assign default companies to the user
+        Company companyA = companyRepository.findByName("Company A").orElseThrow(() -> new RuntimeException("Company Not Found"));
+        Company companyB = companyRepository.findByName("Company B").orElseThrow(() -> new RuntimeException("Company Not Found"));
+        user.getCompanies().add(companyA);
+        user.getCompanies().add(companyB);
+        repository.save(user); // Ensure companies are saved
 
         // Generate JWT Tokens
         String accessToken = jwtService.generateAccessToken(user);
@@ -96,6 +127,7 @@ public class AuthenticationService {
 
         return new AuthenticationResponse(accessToken, refreshToken, "User registration was successful");
     }
+
 
     // Assign a new role to a user
 //    public String assignRoleToUser(Long userId, Role role) {
@@ -113,6 +145,7 @@ public class AuthenticationService {
 //        return "Role " + role + " assigned to user " + user.getUsername();
 //    }
 
+    // Assign a new role to a user
     public String assignRoleToUser(Long userId, Role role) {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -132,9 +165,6 @@ public class AuthenticationService {
     public String removeRoleFromUser(Long userId, Role role) {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Debug log to inspect the roles in the user
-        System.out.println("User roles: " + user.getRoles());
 
         if (!user.getRoles().contains(role)) {
             return "User does not have the role: " + role;
@@ -199,5 +229,21 @@ public class AuthenticationService {
         }
 
         return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+    }
+
+    // This method will get the current user's username from the JWT token
+    public String getCurrentUserUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            throw new RuntimeException("User is not authenticated");
+        }
+        return authentication.getName();  // Get the username from the SecurityContext
+    }
+
+    // You can also add this method to get the current user, if needed
+    public User getCurrentUser() {
+        String username = getCurrentUserUsername();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

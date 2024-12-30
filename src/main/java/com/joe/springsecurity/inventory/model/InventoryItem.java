@@ -1,5 +1,7 @@
 package com.joe.springsecurity.inventory.model;
 
+import com.joe.springsecurity.company.model.Company;
+
 import javax.persistence.*;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Min;
@@ -30,14 +32,19 @@ public class InventoryItem {
     @Transient
     private double totalPrice;
 
+    @ManyToOne
+    @JoinColumn(name = "company_id")  // Foreign key column to map to Company
+    private Company company;  // The company this inventory item belongs to
+
     public InventoryItem() {
     }
 
-    public InventoryItem(String name, int quantity, double price, String description) {
+    public InventoryItem(String name, int quantity, double price, String description, Company company) {
         this.name = name;
         this.quantity = quantity;
         this.price = price;
         this.description = description;
+        this.company = company;
     }
 
     public Long getId() {
@@ -80,6 +87,14 @@ public class InventoryItem {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 
     // This method calculates the total price dynamically based on quantity and price.
