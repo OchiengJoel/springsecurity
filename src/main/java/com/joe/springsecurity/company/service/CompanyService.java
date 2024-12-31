@@ -3,6 +3,9 @@ package com.joe.springsecurity.company.service;
 import com.joe.springsecurity.company.dto.CompanyDTO;
 import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.company.repo.CompanyRepository;
+import com.joe.springsecurity.email.dto.EmailConfigDTO;
+import com.joe.springsecurity.email.model.EmailConfig;
+import com.joe.springsecurity.email.repo.EmailConfigRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,9 +20,11 @@ public class CompanyService {
 
     @Autowired
     private final CompanyRepository companyRepository;
+    private final EmailConfigRepository emailConfigRepository;
 
-    public CompanyService(CompanyRepository companyRepository) {
+    public CompanyService(CompanyRepository companyRepository, EmailConfigRepository emailConfigRepository) {
         this.companyRepository = companyRepository;
+        this.emailConfigRepository = emailConfigRepository;
     }
 
     // Create a new company
@@ -87,6 +92,35 @@ public class CompanyService {
         companyRepository.deleteById(id);
     }
 
+    // Enable a company
+    public CompanyDTO enableCompany(Long companyId) {
+        Company company = companyRepository.findById(companyId).orElseThrow(() ->
+                new RuntimeException("Company not found with ID: " + companyId));
 
+        company.setStatus(true);
+        Company updatedCompany = companyRepository.save(company);
+        return new CompanyDTO(updatedCompany);
+    }
 
+    // Disable a company
+    public CompanyDTO disableCompany(Long companyId) {
+        Company company = companyRepository.findById(companyId).orElseThrow(() ->
+                new RuntimeException("Company not found with ID: " + companyId));
+
+        company.setStatus(false);
+        Company updatedCompany = companyRepository.save(company);
+        return new CompanyDTO(updatedCompany);
+    }
+
+    // Get email configuration for a specific company
+    public EmailConfigDTO getEmailConfig(Long companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new RuntimeException("Company does not exist"));
+
+        EmailConfig emailConfig = emailConfigRepository.findByCompany(company)
+                .orElseThrow(() -> new RuntimeException("Email configuration does not exist for this company"));
+
+        return new EmailConfigDTO(emailConfig);
+    }
 }
+

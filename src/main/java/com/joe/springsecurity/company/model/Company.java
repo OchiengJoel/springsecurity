@@ -19,6 +19,8 @@ public class Company implements Serializable {
     @Column(name = "name", unique = true)
     private String name;
 
+    private boolean status = true; //Default to true(enabled)
+
     @OneToMany(mappedBy = "company")  // The mappedBy should refer to the 'company' field in InventoryItem
     private Set<UserCompany> userCompanies = new HashSet<>();
 
@@ -55,5 +57,13 @@ public class Company implements Serializable {
 
     public void setInventories(Set<InventoryItem> inventories) {
         this.inventories = inventories;
+    }
+
+    public boolean isStatus() {
+        return status;
+    }
+
+    public void setStatus(boolean status) {
+        this.status = status;
     }
 }

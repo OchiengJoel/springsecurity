@@ -1,6 +1,7 @@
 package com.joe.springsecurity.auth.dto;
 
 import com.joe.springsecurity.auth.model.Role;
+import com.joe.springsecurity.company.model.Company;
 
 import java.util.Set;
 
@@ -11,13 +12,15 @@ public class UserDTO {
     private String lastName;
     private String username;
     private Set<Role> roles;  // Make sure roles are included in DTO as a Set or List
+    private Set<Company> companies;
 
-    public UserDTO(Long id, String firstName, String lastName, String username, Set<Role> roles) {
+    public UserDTO(Long id, String firstName, String lastName, String username, Set<Role> roles, Set<Company> companies) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.username = username;
         this.roles = roles;
+        this.companies = companies;
     }
 
     // Getters and setters for all fields
@@ -59,5 +62,13 @@ public class UserDTO {
 
     public void setRoles(Set<Role> roles) {
         this.roles = roles;
+    }
+
+    public Set<Company> getCompanies() {
+        return companies;
+    }
+
+    public void setCompanies(Set<Company> companies) {
+        this.companies = companies;
     }
 }

@@ -2,9 +2,11 @@ package com.joe.springsecurity.company.controller;
 
 import com.joe.springsecurity.company.dto.CompanyDTO;
 import com.joe.springsecurity.company.service.CompanyService;
+import com.joe.springsecurity.email.dto.EmailConfigDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -81,6 +83,42 @@ public class CompanyController {
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    // Enable a company
+    @PatchMapping("/{companyId}/enable")
+    @PreAuthorize("hasRole('ROLE_SUPER_ADMIN')")
+    public ResponseEntity<CompanyDTO> enableCompany(@PathVariable Long companyId) {
+        try {
+            CompanyDTO updatedCompany = companyService.enableCompany(companyId);
+            return ResponseEntity.ok(updatedCompany);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    // Disable a company
+    @PatchMapping("/{companyId}/disable")
+    @PreAuthorize("hasRole('ROLE_SUPER_ADMIN')")
+    public ResponseEntity<CompanyDTO> disableCompany(@PathVariable Long companyId) {
+        try {
+            CompanyDTO updatedCompany = companyService.disableCompany(companyId);
+            return ResponseEntity.ok(updatedCompany);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    // Get email configuration for a specific company
+    @GetMapping("/{companyId}/email-config/list")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    public ResponseEntity<EmailConfigDTO> getEmailConfig(@PathVariable Long companyId) {
+        try {
+            EmailConfigDTO emailConfigDTO = companyService.getEmailConfig(companyId);
+            return ResponseEntity.ok(emailConfigDTO);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
 }
