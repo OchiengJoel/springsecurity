@@ -11,14 +11,16 @@ public class UserDTO {
     private String firstName;
     private String lastName;
     private String username;
+    private String email;
     private Set<Role> roles;  // Make sure roles are included in DTO as a Set or List
     private Set<Company> companies;
 
-    public UserDTO(Long id, String firstName, String lastName, String username, Set<Role> roles, Set<Company> companies) {
+    public UserDTO(Long id, String firstName, String lastName, String username, String email, Set<Role> roles, Set<Company> companies) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.username = username;
+        this.email = email;
         this.roles = roles;
         this.companies = companies;
     }
@@ -70,5 +72,13 @@ public class UserDTO {
 
     public void setCompanies(Set<Company> companies) {
         this.companies = companies;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

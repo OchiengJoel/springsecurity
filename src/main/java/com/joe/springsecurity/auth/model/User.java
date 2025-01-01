@@ -30,8 +30,8 @@ public class User implements UserDetails {
     @Column(name = "password")
     private String password;
 
-//    @Enumerated(value = EnumType.STRING)
-//    private Role role;
+    @Column(name = "email", unique = true)  // Add email column
+    private String email;
 
     @ElementCollection(fetch = FetchType.EAGER)  // Store multiple roles
     @Enumerated(EnumType.STRING)
@@ -141,6 +141,14 @@ public class User implements UserDetails {
 
     public void setCompanies(Set<Company> companies) {
         this.companies = companies;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }
 

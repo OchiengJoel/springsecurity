@@ -9,6 +9,7 @@ import com.joe.springsecurity.auth.repo.TokenRepository;
 import com.joe.springsecurity.auth.repo.UserRepository;
 import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.company.repo.CompanyRepository;
+import com.joe.springsecurity.utils.EmailService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import javax.mail.MessagingException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.HashSet;
@@ -35,8 +37,9 @@ public class AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final CompanyRepository companyRepository; // Inject CompanyRepository to manage companies
     private final UserRepository userRepository;
+    private final EmailService emailService;
 
-    public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, TokenRepository tokenRepository, AuthenticationManager authenticationManager, CompanyRepository companyRepository, UserRepository userRepository) {
+    public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, TokenRepository tokenRepository, AuthenticationManager authenticationManager, CompanyRepository companyRepository, UserRepository userRepository, EmailService emailService) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -44,6 +47,7 @@ public class AuthenticationService {
         this.authenticationManager = authenticationManager;
         this.companyRepository = companyRepository; // Initialize the Company repository
         this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
     // User Authentication
@@ -74,6 +78,17 @@ public class AuthenticationService {
         // Save new tokens in the database
         saveUserToken(accessToken, refreshToken, user);
 
+        // Send email notification for successful login
+        String subject = "Login Notification";
+        String text = "Dear " + user.getFirstName() + ",\n\n" +
+                "You have successfully logged into the system.\n\n" +
+                "If this was not you, please contact support immediately.";
+        try {
+            emailService.sendEmail(user.getEmail(), subject, text);
+        } catch (MessagingException e) {
+            e.printStackTrace();  // Handle email sending errors
+        }
+
         // Return authentication response with tokens
         return new AuthenticationResponse(accessToken, refreshToken, "User login was successful");
     }
@@ -88,6 +103,7 @@ public class AuthenticationService {
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         // If no roles are provided, default to ROLE_USER
@@ -118,6 +134,18 @@ public class AuthenticationService {
         user.getCompanies().add(companyA);
         user.getCompanies().add(companyB);
         repository.save(user); // Ensure companies are saved
+
+        // Send email notification to the new user
+        String subject = "Welcome to the system!";
+        String text = "Dear " + user.getFirstName() + " " + user.getLastName() + ",\n\n" +
+                "Your account has been created successfully.\n\n" +
+                "Username: " + user.getUsername() + "\n" +
+                "Password: " + request.getPassword();  // You may want to generate a password reset link instead.
+        try {
+            emailService.sendEmail(user.getEmail(), subject, text);
+        } catch (MessagingException e) {
+            e.printStackTrace();  // Handle email sending errors
+        }
 
         // Generate JWT Tokens
         String accessToken = jwtService.generateAccessToken(user);
