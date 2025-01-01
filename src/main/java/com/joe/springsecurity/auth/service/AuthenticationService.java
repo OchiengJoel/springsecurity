@@ -38,8 +38,9 @@ public class AuthenticationService {
     private final CompanyRepository companyRepository; // Inject CompanyRepository to manage companies
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final PasswordResetTokenService passwordResetTokenService;
 
-    public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, TokenRepository tokenRepository, AuthenticationManager authenticationManager, CompanyRepository companyRepository, UserRepository userRepository, EmailService emailService) {
+    public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, TokenRepository tokenRepository, AuthenticationManager authenticationManager, CompanyRepository companyRepository, UserRepository userRepository, EmailService emailService, PasswordResetTokenService passwordResetTokenService) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -48,6 +49,7 @@ public class AuthenticationService {
         this.companyRepository = companyRepository; // Initialize the Company repository
         this.userRepository = userRepository;
         this.emailService = emailService;
+        this.passwordResetTokenService = passwordResetTokenService;
     }
 
     // User Authentication
@@ -94,7 +96,7 @@ public class AuthenticationService {
     }
 
     // User Registration
-    public AuthenticationResponse register(User request) {
+    public AuthenticationResponse register(User request) throws MessagingException {
         if (repository.findByUsername(request.getUsername()).isPresent()) {
             return new AuthenticationResponse(null, null, "User already exists");
         }
@@ -104,20 +106,18 @@ public class AuthenticationService {
         user.setLastName(request.getLastName());
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(passwordEncoder.encode(request.getPassword()));  // Encode password securely
 
-        // If no roles are provided, default to ROLE_USER
         Set<Role> roles = request.getRoles();
         if (roles == null || roles.isEmpty()) {
             roles = new HashSet<>();
             roles.add(Role.ROLE_USER);  // Default to ROLE_USER
         }
-        user.setRoles(roles);  // Set the roles for the user
+        user.setRoles(roles);
 
-        // Check if this is the first registration and assign the default companies
-        user = repository.save(user); // Ensure that roles are persisted
+        user = repository.save(user);
 
-        // Automatically assign the default companies
+        // Automatically assign default companies
         if (companyRepository.count() == 0) {
             Company companyA = new Company();
             companyA.setName("Company A");
@@ -128,24 +128,24 @@ public class AuthenticationService {
             companyRepository.save(companyB);
         }
 
-        // Assign default companies to the user
-        Company companyA = companyRepository.findByName("Company A").orElseThrow(() -> new RuntimeException("Company Not Found"));
-        Company companyB = companyRepository.findByName("Company B").orElseThrow(() -> new RuntimeException("Company Not Found"));
+        Company companyA = companyRepository.findByName("Test Company Ltd")
+                .orElseThrow(() -> new RuntimeException("Company Not Found"));
         user.getCompanies().add(companyA);
-        user.getCompanies().add(companyB);
-        repository.save(user); // Ensure companies are saved
+        repository.save(user);
 
-        // Send email notification to the new user
-        String subject = "Welcome to the system!";
+        // Generate a password reset token
+        String resetToken = passwordResetTokenService.createPasswordResetToken(user);
+
+        // Create the password reset URL
+        String resetLink = "https://yourdomain.com/reset-password?token=" + resetToken;
+
+        // Send email with the password reset link
+        String subject = "Welcome to the system! Please reset your password";
         String text = "Dear " + user.getFirstName() + " " + user.getLastName() + ",\n\n" +
-                "Your account has been created successfully.\n\n" +
-                "Username: " + user.getUsername() + "\n" +
-                "Password: " + request.getPassword();  // You may want to generate a password reset link instead.
-        try {
-            emailService.sendEmail(user.getEmail(), subject, text);
-        } catch (MessagingException e) {
-            e.printStackTrace();  // Handle email sending errors
-        }
+                "Your account has been created successfully. Please click the link below to set your password:\n\n" +
+                resetLink;
+
+        emailService.sendEmail(user.getEmail(), subject, text);  // Send email asynchronously
 
         // Generate JWT Tokens
         String accessToken = jwtService.generateAccessToken(user);
@@ -157,20 +157,67 @@ public class AuthenticationService {
     }
 
 
-    // Assign a new role to a user
-//    public String assignRoleToUser(Long userId, Role role) {
-//        User user = repository.findById(userId)
-//                .orElseThrow(() -> new RuntimeException("User not found"));
-//
-//        // Check if role already exists
-//        if (user.getRoles().contains(role)) {
-//            return "User already has the role: " + role;
+    // User Registration
+//    public AuthenticationResponse register(User request) {
+//        if (repository.findByUsername(request.getUsername()).isPresent()) {
+//            return new AuthenticationResponse(null, null, "User already exists");
 //        }
 //
-//        user.getRoles().add(role);  // Add the role to the user
-//        repository.save(user);
+//        User user = new User();
+//        user.setFirstName(request.getFirstName());
+//        user.setLastName(request.getLastName());
+//        user.setUsername(request.getUsername());
+//        user.setEmail(request.getEmail());
+//        user.setPassword(passwordEncoder.encode(request.getPassword()));
 //
-//        return "Role " + role + " assigned to user " + user.getUsername();
+//        // If no roles are provided, default to ROLE_USER
+//        Set<Role> roles = request.getRoles();
+//        if (roles == null || roles.isEmpty()) {
+//            roles = new HashSet<>();
+//            roles.add(Role.ROLE_USER);  // Default to ROLE_USER
+//        }
+//        user.setRoles(roles);  // Set the roles for the user
+//
+//        // Check if this is the first registration and assign the default companies
+//        user = repository.save(user); // Ensure that roles are persisted
+//
+//        // Automatically assign the default companies
+//        if (companyRepository.count() == 0) {
+//            Company companyA = new Company();
+//            companyA.setName("Company A");
+//            companyRepository.save(companyA);
+//
+//            Company companyB = new Company();
+//            companyB.setName("Company B");
+//            companyRepository.save(companyB);
+//        }
+//
+//        // Assign default companies to the user
+//        Company companyA = companyRepository.findByName("Company A").orElseThrow(() -> new RuntimeException("Company Not Found"));
+//        Company companyB = companyRepository.findByName("Company B").orElseThrow(() -> new RuntimeException("Company Not Found"));
+//        user.getCompanies().add(companyA);
+//        user.getCompanies().add(companyB);
+//        repository.save(user); // Ensure companies are saved
+//
+//        // Send email notification to the new user
+//        String subject = "Welcome to the system!";
+//        String text = "Dear " + user.getFirstName() + " " + user.getLastName() + ",\n\n" +
+//                "Your account has been created successfully.\n\n" +
+//                "Username: " + user.getUsername() + "\n" +
+//                "Password: " + request.getPassword();  // You may want to generate a password reset link instead.
+//        try {
+//            emailService.sendEmail(user.getEmail(), subject, text);
+//        } catch (MessagingException e) {
+//            e.printStackTrace();  // Handle email sending errors
+//        }
+//
+//        // Generate JWT Tokens
+//        String accessToken = jwtService.generateAccessToken(user);
+//        String refreshToken = jwtService.generateRefreshToken(user);
+//
+//        saveUserToken(accessToken, refreshToken, user);
+//
+//        return new AuthenticationResponse(accessToken, refreshToken, "User registration was successful");
 //    }
 
     // Assign a new role to a user

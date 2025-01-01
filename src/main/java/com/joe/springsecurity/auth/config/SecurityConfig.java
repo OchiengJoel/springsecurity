@@ -42,7 +42,7 @@ public class SecurityConfig {
         return http
                 .csrf(AbstractHttpConfigurer::disable)  // Disable CSRF for non-browser clients
                 .authorizeRequests()
-                .antMatchers("/api/v2/auth/register", "/api/v2/auth/login", "/api/v2/auth/refresh_token") // Allow authentication-related endpoints
+                .antMatchers("/api/v2/auth/register", "/api/v2/auth/login", "/api/v2/auth/refresh_token", "/api/v2/reset-password") // Allow authentication-related endpoints
                 .permitAll()
                 .antMatchers("/api/v2/inventoryitem/**").hasAnyRole("SUPER_ADMIN", "ADMIN", "USER") // Allow Super_Admin, Admin and User to access inventory (read-only for User)
                 .antMatchers(HttpMethod.POST, "/api/v2/inventoryitem/**").hasAnyRole("SUPER_ADMIN", "ADMIN") // Super_Admin, Admin only for creating inventory
