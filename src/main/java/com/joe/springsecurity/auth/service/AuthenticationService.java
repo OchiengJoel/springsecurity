@@ -10,6 +10,8 @@ import com.joe.springsecurity.auth.repo.UserRepository;
 import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.company.repo.CompanyRepository;
 import com.joe.springsecurity.utils.EmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,8 @@ import java.util.Set;
 
 @Service
 public class AuthenticationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
 
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
@@ -83,12 +87,15 @@ public class AuthenticationService {
         // Send email notification for successful login
         String subject = "Login Notification";
         String text = "Dear " + user.getFirstName() + ",\n\n" +
-                "You have successfully logged into the system.\n\n" +
-                "If this was not you, please contact support immediately.";
+                "We noticed a successfull sign-in to your CMS account: " + user.getEmail() +".\n\n" +
+                "If you signed-in recently, relax and know that you are safe! \n\n" +
+                "But if you don’t recognize this sign-in, we recommend you change your password immediately or " +
+                "contact your System Admin or support team. \n\n" +
+                "Best Regards.";
         try {
             emailService.sendEmail(user.getEmail(), subject, text);
         } catch (MessagingException e) {
-            e.printStackTrace();  // Handle email sending errors
+            logger.error("Error sending email to " + user.getEmail(), e);  // Handle email sending errors
         }
 
         // Return authentication response with tokens
