@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v2/companies/{companyId}/email-config")
+@CrossOrigin(origins = "http://localhost:4200")
 public class EmailConfigController {
 
     private final EmailConfigService emailConfigService;

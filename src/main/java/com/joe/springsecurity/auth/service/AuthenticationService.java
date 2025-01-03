@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthenticationService {
@@ -99,13 +100,23 @@ public class AuthenticationService {
         }
 
         // Return authentication response with tokens
-        return new AuthenticationResponse(accessToken, refreshToken, "User login was successful");
+        //return new AuthenticationResponse(accessToken, refreshToken, "User login was successful");
+        return new AuthenticationResponse(
+                accessToken,
+                refreshToken,
+                "User login was successful",
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
+                user.getCompanies().stream().map(Company::getName).collect(Collectors.toList())
+        );
     }
 
     // User Registration
     public AuthenticationResponse register(User request) throws MessagingException {
         if (repository.findByUsername(request.getUsername()).isPresent()) {
-            return new AuthenticationResponse(null, null, "User already exists");
+            return new AuthenticationResponse(null, null, "User already exists", null, null, null, null, null);
         }
 
         User user = new User();
@@ -127,12 +138,9 @@ public class AuthenticationService {
         // Automatically assign default companies
         if (companyRepository.count() == 0) {
             Company companyA = new Company();
-            companyA.setName("Company A");
+            companyA.setName("Test Company Ltd");
             companyRepository.save(companyA);
 
-            Company companyB = new Company();
-            companyB.setName("Company B");
-            companyRepository.save(companyB);
         }
 
         Company companyA = companyRepository.findByName("Test Company Ltd")
@@ -160,7 +168,18 @@ public class AuthenticationService {
 
         saveUserToken(accessToken, refreshToken, user);
 
-        return new AuthenticationResponse(accessToken, refreshToken, "User registration was successful");
+        //return new AuthenticationResponse(accessToken, refreshToken, "User registration was successful");
+
+        return new AuthenticationResponse(
+                accessToken,
+                refreshToken,
+                "User registration was successful",
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
+                user.getCompanies().stream().map(Company::getName).collect(Collectors.toList())
+        );
     }
 
 
@@ -307,7 +326,19 @@ public class AuthenticationService {
             revokeAllTokensByUser(user);
             saveUserToken(accessToken, refreshToken, user);
 
-            return ResponseEntity.ok(new AuthenticationResponse(accessToken, refreshToken, "New tokens generated"));
+           // return ResponseEntity.ok(new AuthenticationResponse(accessToken, refreshToken, "New tokens generated"));
+
+            return ResponseEntity.ok(new AuthenticationResponse(
+                    accessToken,
+                    refreshToken,
+                    "User registration was successful",
+                    user.getEmail(),
+                    user.getFirstName(),
+                    user.getLastName(),
+                    user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
+                    user.getCompanies().stream().map(Company::getName).collect(Collectors.toList())
+            ));
+
         }
 
         return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);

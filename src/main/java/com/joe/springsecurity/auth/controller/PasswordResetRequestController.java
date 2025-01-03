@@ -14,6 +14,7 @@ import javax.mail.MessagingException;
 
 @RestController
 @RequestMapping("/api/v2/request-password-reset")
+@CrossOrigin(origins = "http://localhost:4200")
 public class PasswordResetRequestController {
 
     private final PasswordResetTokenService passwordResetTokenService;

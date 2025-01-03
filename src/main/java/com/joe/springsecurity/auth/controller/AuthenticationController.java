@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v2/auth")
+@CrossOrigin(origins = "http://localhost:4200")
 public class AuthenticationController {
 
     private final AuthenticationService authService;
@@ -42,7 +43,8 @@ public class AuthenticationController {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthenticationResponse(null, null, "Error registering user: " + e.getMessage()));
+//                    .body(new AuthenticationResponse(null, null, "Error registering user: " + e.getMessage()));
+                    .body(new AuthenticationResponse(null, null, "Error registering user: " + e.getMessage(), null, null, null, null, null));
         }
     }
 

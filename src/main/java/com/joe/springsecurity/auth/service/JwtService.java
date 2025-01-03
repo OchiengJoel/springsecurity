@@ -7,6 +7,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,8 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
 
     // Using HS512 to generate the secret key securely
     private final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS512);
@@ -52,6 +56,8 @@ public class JwtService {
 
     // Method to validate the refresh token
     public boolean isValidRefreshToken(String token, User user) {
+        logger.debug("Validating token for user: {}", user.getUsername());
+
         String username = extractUsername(token);
 
         boolean validRefreshToken = tokenRepository
@@ -63,8 +69,18 @@ public class JwtService {
     }
 
     // Check if the token has expired
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+//    private boolean isTokenExpired(String token) {
+//        return extractExpiration(token).before(new Date());
+//    }
+
+    public boolean isTokenExpired(String token) {
+        Date expiration = extractExpiration(token);
+        Date now = new Date();
+        if (expiration.before(now)) {
+            logger.warn("Token expired at {}", expiration);
+            return true;
+        }
+        return false;
     }
 
     // Extract expiration from the token
@@ -95,6 +111,7 @@ public class JwtService {
 
     // Generate the refresh token for the user
     public String generateRefreshToken(User user) {
+        logger.info("Generating access token for user: {}", user.getUsername());
         return generateToken(user, refreshTokenExpire);
     }
 

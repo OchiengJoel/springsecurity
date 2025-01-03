@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v2/reset-password")
+@CrossOrigin(origins = "http://localhost:4200")
 public class PasswordResetController {
 
     private final PasswordResetTokenService passwordResetTokenService;
