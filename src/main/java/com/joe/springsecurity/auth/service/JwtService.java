@@ -2,6 +2,7 @@ package com.joe.springsecurity.auth.service;
 
 import com.joe.springsecurity.auth.model.User;
 import com.joe.springsecurity.auth.repo.TokenRepository;
+import com.joe.springsecurity.company.model.Company;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -105,24 +106,24 @@ public class JwtService {
     }
 
     // Generate the access token for the user
-    public String generateAccessToken(User user) {
-        return generateToken(user, accessTokenExpire);
+    public String generateAccessToken(User user, Company currentCompany) {
+        return generateToken(user, currentCompany, accessTokenExpire);
     }
 
     // Generate the refresh token for the user
-    public String generateRefreshToken(User user) {
+    public String generateRefreshToken(User user, Company currentCompany) {
         logger.info("Generating access token for user: {}", user.getUsername());
-        return generateToken(user, refreshTokenExpire);
+        return generateToken(user, currentCompany, refreshTokenExpire);
     }
 
-    // Helper method to generate a JWT token with expiration time
-    private String generateToken(User user, long expireTime) {
+    private String generateToken(User user, Company currentCompany, long expireTime) {
         return Jwts.builder()
-                .setSubject(user.getUsername())  // Set the username as the subject
-                .setIssuedAt(new Date(System.currentTimeMillis()))  // Set the issue time
-                .setExpiration(new Date(System.currentTimeMillis() + expireTime))  // Set expiration time
-                .signWith(SECRET_KEY)  // Sign the JWT with the HS512 key
-                .compact();  // Generate the compact JWT
+                .setSubject(user.getUsername())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + expireTime))
+                .claim("company", currentCompany.getName())  // Include company in token
+                .signWith(SECRET_KEY)
+                .compact();
     }
 
     // Get the signing key (HS512) for the JWT

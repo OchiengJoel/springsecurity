@@ -19,9 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
@@ -43,23 +40,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration corsConfiguration = new CorsConfiguration();
-        corsConfiguration.setAllowedOrigins(Arrays.asList("http://localhost:4200")); // Set your front-end URL here (e.g., Angular's localhost:4200)
-        corsConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH")); // Set the HTTP methods allowed
-        corsConfiguration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type")); // Set headers you expect from client
-        corsConfiguration.setAllowCredentials(true); // Allow credentials (cookies, authorization headers, etc.)
-        corsConfiguration.setMaxAge(3600L); // Set pre-flight cache time (in seconds)
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", corsConfiguration); // Apply to all paths
-
-        return source;
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
+        return http.cors().and() // Enable CORS
                 .csrf(AbstractHttpConfigurer::disable)  // Disable CSRF for non-browser clients
                 .authorizeRequests()
                 .antMatchers("/api/v2/auth/register", "/api/v2/auth/login", "/api/v2/auth/refresh_token", "/api/v2/reset-password", "/api/v2/request-password-reset") // Allow authentication-related endpoints

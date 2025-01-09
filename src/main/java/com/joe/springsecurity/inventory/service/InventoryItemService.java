@@ -3,6 +3,7 @@ package com.joe.springsecurity.inventory.service;
 import com.joe.springsecurity.auth.service.UserService;
 import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.errorhandling.UnauthorizedAccessException;
+import com.joe.springsecurity.inventory.dto.InventoryItemDTO;
 import com.joe.springsecurity.inventory.model.InventoryItem;
 import com.joe.springsecurity.inventory.repo.InventoryItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class InventoryItemService {
 
+
     private final InventoryItemRepository inventoryItemRepository;
     private final UserService userService;
 
@@ -24,49 +26,85 @@ public class InventoryItemService {
     }
 
     @Transactional
-    public InventoryItem createInventoryItem(InventoryItem inventoryItem) {
+    public InventoryItemDTO createInventoryItem(InventoryItem inventoryItem) {
         Company userCompany = userService.getCurrentUserCompany();
         if (userCompany == null) {
             throw new UnauthorizedAccessException("User does not belong to any company.");
         }
-        inventoryItem.setCompany(userCompany); // Set the company of the inventory item to the logged-in user's company.
-        return inventoryItemRepository.save(inventoryItem);
+        inventoryItem.setCompany(userCompany); // Set the company for the inventory item
+
+        // Save the inventory item
+        InventoryItem createdItem = inventoryItemRepository.save(inventoryItem);
+
+        // Convert the created InventoryItem to InventoryItemDTO and return it
+        return new InventoryItemDTO(
+                createdItem.getId(),
+                createdItem.getName(),
+                createdItem.getQuantity(),
+                createdItem.getPrice(),
+                createdItem.getDescription()
+        );
     }
 
-    // Get all inventory items of the current user's company
-    public Page<InventoryItem> getAllInventoryItems(Pageable pageable) {
+    public Page<InventoryItemDTO> getAllInventoryItems(Pageable pageable) {
         Company userCompany = userService.getCurrentUserCompany();
         if (userCompany == null) {
             throw new UnauthorizedAccessException("User does not belong to any company.");
         }
-        return inventoryItemRepository.findByCompany(userCompany, pageable);  // This will now work
+        Page<InventoryItem> inventoryItems = inventoryItemRepository.findByCompany(userCompany, pageable);
+
+        // Convert InventoryItem entities to InventoryItemDTOs
+        return inventoryItems.map(item -> new InventoryItemDTO(
+                item.getId(),
+                item.getName(),
+                item.getQuantity(),
+                item.getPrice(),
+                item.getDescription()
+        ));
     }
 
-    // Get inventory item count for the user's company
     public long getInventoryItemCount() {
         Company userCompany = userService.getCurrentUserCompany();
         if (userCompany == null) {
             throw new UnauthorizedAccessException("User does not belong to any company.");
         }
-        return inventoryItemRepository.countByCompany(userCompany);  // This method works as expected
+        return inventoryItemRepository.countByCompany(userCompany);
     }
 
-    public InventoryItem getInventoryItemById(Long id) {
+    public InventoryItemDTO getInventoryItemById(Long id) {
         InventoryItem item = inventoryItemRepository.findById(id).orElse(null);
-        if (item != null && !item.getCompany().equals(userService.getCurrentUserCompany())) {
+        if (item == null || !item.getCompany().equals(userService.getCurrentUserCompany())) {
             throw new UnauthorizedAccessException("This inventory item does not belong to your company.");
         }
-        return item;
+
+        // Return the converted DTO
+        return new InventoryItemDTO(
+                item.getId(),
+                item.getName(),
+                item.getQuantity(),
+                item.getPrice(),
+                item.getDescription()
+        );
     }
 
     @Transactional
-    public InventoryItem updateInventoryItem(Long id, InventoryItem inventoryItem) {
+    public InventoryItemDTO updateInventoryItem(Long id, InventoryItem inventoryItem) {
         InventoryItem existingItem = inventoryItemRepository.findById(id).orElse(null);
         if (existingItem == null || !existingItem.getCompany().equals(userService.getCurrentUserCompany())) {
             throw new UnauthorizedAccessException("This inventory item does not belong to your company.");
         }
-        inventoryItem.setId(id);  // Keep the original ID
-        return inventoryItemRepository.save(inventoryItem);
+
+        inventoryItem.setId(id); // Keep the original ID
+        InventoryItem updatedItem = inventoryItemRepository.save(inventoryItem);
+
+        // Convert the updated entity to DTO
+        return new InventoryItemDTO(
+                updatedItem.getId(),
+                updatedItem.getName(),
+                updatedItem.getQuantity(),
+                updatedItem.getPrice(),
+                updatedItem.getDescription()
+        );
     }
 
     @Transactional
@@ -79,3 +117,4 @@ public class InventoryItemService {
         return true;
     }
 }
+

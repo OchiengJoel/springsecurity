@@ -32,9 +32,9 @@ public class InventoryItem {
     @Transient
     private double totalPrice;
 
-    @ManyToOne
-    @JoinColumn(name = "company_id")  // Foreign key column to map to Company
-    private Company company;  // The company this inventory item belongs to
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     public InventoryItem() {
     }
