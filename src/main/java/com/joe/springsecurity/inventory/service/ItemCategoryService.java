@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ItemCategoryService {
@@ -51,6 +53,8 @@ public class ItemCategoryService {
      */
     @Transactional
     public ItemCategoryDTO createItemCategory(@Valid ItemCategoryDTO itemCategoryDTO) {
+
+        System.out.println("Creating ItemCategory from DTO: " + itemCategoryDTO);
 
         // Ensure the user belongs to a company
         Company userCompany = ensureUserBelongsToCompany();
@@ -180,5 +184,66 @@ public class ItemCategoryService {
         // Proceed with deletion
         itemCategoryRepository.deleteById(id);
         return true;
+    }
+
+    @Transactional
+    public List<ItemCategoryDTO> batchCreateItemCategories(@Valid List<ItemCategoryDTO> itemCategoryDTOs) {
+        // Ensure the user belongs to a company
+        Company userCompany = ensureUserBelongsToCompany();
+
+        // Check for duplicate names before proceeding
+        for (ItemCategoryDTO itemCategoryDTO : itemCategoryDTOs) {
+            if (itemCategoryRepository.findByName(itemCategoryDTO.getName()).isPresent()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ItemCategory with name '" + itemCategoryDTO.getName() + "' already exists.");
+            }
+        }
+
+        // Convert DTOs to entities and associate the user's company
+        List<ItemCategory> itemCategories = itemCategoryDTOs.stream()
+                .map(dto -> {
+                    ItemCategory itemCategory = new ItemCategory(
+                            dto.getName(),
+                            dto.getDescription(),
+                            dto.getItemType()
+                    );
+                    itemCategory.setCompany(userCompany);
+                    return itemCategory;
+                })
+                .collect(Collectors.toList());
+
+        // Save all entities at once
+        List<ItemCategory> createdItemCategories = itemCategoryRepository.saveAll(itemCategories);
+
+        // Convert entities back to DTOs
+        return createdItemCategories.stream()
+                .map(itemCategory -> new ItemCategoryDTO(
+                        itemCategory.getId(),
+                        itemCategory.getName(),
+                        itemCategory.getItemType(),
+                        itemCategory.getDescription()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void batchDeleteItemCategories(List<Long> ids) {
+        // Ensure the user belongs to a company
+        Company userCompany = ensureUserBelongsToCompany();
+
+        // Fetch the ItemCategories by their IDs and check for ownership
+        List<ItemCategory> itemCategories = itemCategoryRepository.findAllById(ids);
+
+        if (itemCategories.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ItemCategories not found.");
+        }
+
+        for (ItemCategory itemCategory : itemCategories) {
+            if (!itemCategory.getCompany().equals(userCompany)) {
+                throw new UnauthorizedAccessException("You do not have permission to delete this item category.");
+            }
+        }
+
+        // Proceed with deletion
+        itemCategoryRepository.deleteAll(itemCategories);
     }
 }

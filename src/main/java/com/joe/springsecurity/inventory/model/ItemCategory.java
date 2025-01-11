@@ -5,6 +5,8 @@ import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.inventory.enums.ItemType;
 
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 @Entity
 @Table(name = "cms_item_categories")
@@ -14,10 +16,13 @@ public class ItemCategory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull
+    @Size(min = 1, max = 255)
     private String name;
 
     private String description;
 
+    @NotNull
     @Enumerated(EnumType.STRING)
     private ItemType itemType;
 
@@ -31,6 +36,7 @@ public class ItemCategory {
     public ItemCategory() {
     }
 
+    // Constructor with all fields, including company
     public ItemCategory(String name, String description, ItemType itemType, Company company) {
         this.name = name;
         this.description = description;
@@ -38,7 +44,16 @@ public class ItemCategory {
         this.company = company;
     }
 
+    // Constructor without company (for DTO conversion or non-company specific categories)
     public ItemCategory(String name, String description, ItemType itemType) {
+        this.name = name;
+        this.description = description;
+        this.itemType = itemType;
+    }
+
+    @Override
+    public String toString() {
+        return "ItemCategory{id=" + id + ", name='" + name + "', description='" + description + "', itemType=" + itemType + ", company=" + (company != null ? company.getName() : "No company") + "}";
     }
 
     public Long getId() {
