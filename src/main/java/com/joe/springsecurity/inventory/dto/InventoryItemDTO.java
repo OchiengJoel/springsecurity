@@ -9,14 +9,16 @@ public class InventoryItemDTO {
     private double price;
     private String description;
     private double totalPrice;
+    private Long itemCategoryId;
 
-    public InventoryItemDTO(Long id, String name, int quantity, double price, String description) {
+    public InventoryItemDTO(Long id, String name, int quantity, double price, String description, Long itemCategoryId) {
         this.id = id;
         this.name = name;
         this.quantity = quantity;
         this.price = price;
         this.description = description;
         this.totalPrice = quantity * price;
+        this.itemCategoryId = itemCategoryId;
     }
 
     // Getters and setters
@@ -58,6 +60,14 @@ public class InventoryItemDTO {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Long getItemCategoryId() {
+        return itemCategoryId;
+    }
+
+    public void setItemCategoryId(Long itemCategoryId) {
+        this.itemCategoryId = itemCategoryId;
     }
 
     public double getTotalPrice() {

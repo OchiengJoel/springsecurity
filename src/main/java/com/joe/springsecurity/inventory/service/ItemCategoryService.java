@@ -3,12 +3,9 @@ package com.joe.springsecurity.inventory.service;
 import com.joe.springsecurity.auth.service.UserService;
 import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.errorhandling.UnauthorizedAccessException;
-import com.joe.springsecurity.inventory.dto.InventoryItemDTO;
 import com.joe.springsecurity.inventory.dto.ItemCategoryDTO;
-import com.joe.springsecurity.inventory.model.InventoryItem;
 import com.joe.springsecurity.inventory.model.ItemCategory;
 import com.joe.springsecurity.inventory.repo.ItemCategoryRepository;
-
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;

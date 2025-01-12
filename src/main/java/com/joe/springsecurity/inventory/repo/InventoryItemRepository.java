@@ -2,6 +2,7 @@ package com.joe.springsecurity.inventory.repo;
 
 import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.inventory.model.InventoryItem;
+import com.joe.springsecurity.inventory.model.ItemCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,4 +20,8 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, Lo
 
     // Method to count inventory items by company
     long countByCompany(Company company);
+
+    // Custom method to find InventoryItems by Company and ItemCategory with pagination
+    Page<InventoryItem> findByCompanyAndItemCategory(Company company, ItemCategory itemCategory, Pageable pageable);
+
 }

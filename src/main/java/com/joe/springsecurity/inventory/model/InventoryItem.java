@@ -36,15 +36,22 @@ public class InventoryItem {
     @JoinColumn(name = "company_id")
     private Company company;
 
+    // Add the ManyToOne relationship with ItemCategory
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_category_id")
+    private ItemCategory itemCategory; // This will link to the ItemCategory
+
+
     public InventoryItem() {
     }
 
-    public InventoryItem(String name, int quantity, double price, String description, Company company) {
+    public InventoryItem(String name, int quantity, double price, String description, Company company, ItemCategory itemCategory) {
         this.name = name;
         this.quantity = quantity;
         this.price = price;
         this.description = description;
         this.company = company;
+        this.itemCategory = itemCategory;
     }
 
     public Long getId() {
@@ -95,6 +102,14 @@ public class InventoryItem {
 
     public void setCompany(Company company) {
         this.company = company;
+    }
+
+    public ItemCategory getItemCategory() {
+        return itemCategory;
+    }
+
+    public void setItemCategory(ItemCategory itemCategory) {
+        this.itemCategory = itemCategory;
     }
 
     // This method calculates the total price dynamically based on quantity and price.

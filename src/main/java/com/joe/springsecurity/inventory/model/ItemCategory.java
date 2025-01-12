@@ -7,6 +7,8 @@ import com.joe.springsecurity.inventory.enums.ItemType;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "cms_item_categories")
@@ -29,6 +31,10 @@ public class ItemCategory {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;
+
+    // One-to-many relationship with InventoryItem
+    @OneToMany(mappedBy = "itemCategory", fetch = FetchType.LAZY)
+    private Set<InventoryItem> inventoryItems = new HashSet<>();
 
     // Constructors, Getters, Setters, equals() and hashCode()
 
@@ -94,5 +100,14 @@ public class ItemCategory {
 
     public void setCompany(Company company) {
         this.company = company;
+    }
+
+
+    public Set<InventoryItem> getInventoryItems() {
+        return inventoryItems;
+    }
+
+    public void setInventoryItems(Set<InventoryItem> inventoryItems) {
+        this.inventoryItems = inventoryItems;
     }
 }
