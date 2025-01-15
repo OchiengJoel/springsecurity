@@ -10,31 +10,31 @@ import javax.validation.constraints.Size;
 import java.util.HashSet;
 import java.util.Set;
 
-@Entity
-@Table(name = "cms_item_categories")
-public class ItemCategory {
+    @Entity
+    @Table(name = "cms_item_categories")
+    public class ItemCategory {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
 
-    @NotNull
-    @Size(min = 1, max = 255)
-    private String name;
+        @NotNull
+        @Size(min = 1, max = 255)
+        private String name;
 
-    private String description;
+        private String description;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    private ItemType itemType;
+        @NotNull
+        @Enumerated(EnumType.STRING)
+        private ItemType itemType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
-    private Company company;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "company_id")
+        private Company company;
 
-    // One-to-many relationship with InventoryItem
-    @OneToMany(mappedBy = "itemCategory", fetch = FetchType.LAZY)
-    private Set<InventoryItem> inventoryItems = new HashSet<>();
+        // One-to-many relationship with InventoryItem
+        @OneToMany(mappedBy = "itemCategory", fetch = FetchType.LAZY)
+        private Set<InventoryItem> inventoryItems = new HashSet<>();
 
     // Constructors, Getters, Setters, equals() and hashCode()
 
