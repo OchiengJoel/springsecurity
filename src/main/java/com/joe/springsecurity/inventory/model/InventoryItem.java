@@ -1,5 +1,6 @@
 package com.joe.springsecurity.inventory.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.joe.springsecurity.company.model.Company;
 
 import javax.persistence.*;
@@ -39,8 +40,8 @@ public class InventoryItem {
     // Add the ManyToOne relationship with ItemCategory
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_category_id")
+    @JsonBackReference  // Prevents infinite recursion by not serializing the back reference
     private ItemCategory itemCategory; // This will link to the ItemCategory
-
 
     public InventoryItem() {
     }
@@ -121,5 +122,4 @@ public class InventoryItem {
     private void updateTotalPrice() {
         this.totalPrice = getTotalPrice(); // Update the total price whenever quantity or price is changed
     }
-
 }

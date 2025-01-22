@@ -39,8 +39,10 @@ public class CompanyService {
         }
 
         // Fetch the associated Country from the database based on CountryDTO
-        Country country = countryRepository.findById(companyDTO.getCountry().getId())
+        //Country country = countryRepository.findById(companyDTO.getCountry().getId())
+        Country country = countryRepository.findById(companyDTO.getCountryId())
                 .orElseThrow(() -> new RuntimeException("Country not found"));
+
 
         Company company = new Company();
         company.setName(companyDTO.getName());
@@ -65,7 +67,10 @@ public class CompanyService {
                 .orElseThrow(() -> new RuntimeException("Company with ID " + companyId + " not found."));
 
         // Fetch the associated Country from the database based on CountryDTO
-        Country country = countryRepository.findById(companyDTO.getCountry().getId())
+//        Country country = countryRepository.findById(companyDTO.getCountry().getId())
+//                .orElseThrow(() -> new RuntimeException("Country not found"));
+
+        Country country = countryRepository.findById(companyDTO.getCountryId())
                 .orElseThrow(() -> new RuntimeException("Country not found"));
 
         company.setName(companyDTO.getName());

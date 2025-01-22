@@ -48,7 +48,6 @@ public class Country implements Serializable {
         this.name = name;
     }
 
-
     public String getContinent() {
         return continent;
     }

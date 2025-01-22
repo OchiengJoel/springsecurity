@@ -20,8 +20,7 @@ import java.util.Set;
 
 @Service
 public class InventoryItemService {
-
-
+    
     private final InventoryItemRepository inventoryItemRepository;
     private final ItemCategoryRepository itemCategoryRepository;
     private final UserService userService;
