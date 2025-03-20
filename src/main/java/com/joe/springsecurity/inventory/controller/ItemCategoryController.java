@@ -28,165 +28,219 @@ import java.util.Map;
 @RequestMapping("/api/v2/item-categories")
 @CrossOrigin(origins = "http://localhost:4200")
 public class ItemCategoryController {
-
     private static final Logger logger = LoggerFactory.getLogger(ItemCategoryController.class);
 
-        private final ItemCategoryService itemCategoryService;
+    private final ItemCategoryService itemCategoryService;
 
-        @Autowired
-        public ItemCategoryController(ItemCategoryService itemCategoryService) {
-            this.itemCategoryService = itemCategoryService;
-        }
+    @Autowired
+    public ItemCategoryController(ItemCategoryService itemCategoryService) {
+        this.itemCategoryService = itemCategoryService;
+    }
 
-        /**
-         * Create a new ItemCategory.
-         *
-         * @param itemCategoryDTO Data Transfer Object (DTO) for creating an ItemCategory
-         * @return ResponseEntity with status code and created ItemCategoryDTO
-         */
-        @PostMapping("/create")
-        @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-        public ResponseEntity<ItemCategoryDTO> createItemCategory(@Valid @RequestBody ItemCategoryDTO itemCategoryDTO) {
-            // Log the incoming request to see if it's being correctly parsed
-            logger.info("Received ItemCategoryDTO: " + itemCategoryDTO);
-
-            try {
-                ItemCategoryDTO createdItemCategory = itemCategoryService.createItemCategory(itemCategoryDTO);
-                return ResponseEntity.status(HttpStatus.CREATED).body(createdItemCategory);
-            } catch (UnauthorizedAccessException e) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            } catch (ResponseStatusException e) {
-                return ResponseEntity.status(e.getStatus()).body(null); // Return status from exception
-            }
-        }
-
-        /**
-         * Get all ItemCategories.
-         *
-         * @param pageable Pagination information
-         * @return ResponseEntity containing a page of ItemCategoryDTOs
-         */
-        @GetMapping("/list")
-        public ResponseEntity<Map<String, Object>> getAllItemCategories(Pageable pageable) {
-            try {
-                Page<ItemCategoryDTO> page = itemCategoryService.getAllItemCategories(pageable);
-                Map<String, Object> response = new HashMap<>();
-                response.put("items", page.getContent());
-                response.put("currentPage", page.getNumber());
-                response.put("totalItems", page.getTotalElements());
-                response.put("totalPages", page.getTotalPages());
-                response.put("size", page.getSize());
-                return ResponseEntity.ok(response);
-            } catch (UnauthorizedAccessException e) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            } catch (Exception e) {
-                // General error handler for unexpected exceptions
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-            }
-        }
-
-        /**
-         * Get an ItemCategory by its ID.
-         *
-         * @param id ItemCategory ID
-         * @return ResponseEntity with ItemCategoryDTO
-         */
-        @GetMapping("/{id}")
-        public ResponseEntity<ItemCategoryDTO> getItemCategoryById(@PathVariable Long id) {
-            try {
-                ItemCategoryDTO itemCategoryDTO = itemCategoryService.getItemCategoryById(id);
-                return ResponseEntity.ok(itemCategoryDTO);
-            } catch (UnauthorizedAccessException e) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            } catch (ResponseStatusException e) {
-                return ResponseEntity.status(e.getStatus()).body(null); // Return status from exception
-            }
-        }
-
-        /**
-         * Update an existing ItemCategory.
-         *
-         * @param id               ItemCategory ID
-         * @param itemCategoryDTO  Data Transfer Object with updated details
-         * @return ResponseEntity with the updated ItemCategoryDTO
-         */
-        @PutMapping("/update/{id}")
-        @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-        public ResponseEntity<ItemCategoryDTO> updateItemCategory(@PathVariable Long id, @Valid @RequestBody ItemCategoryDTO itemCategoryDTO) {
-            try {
-                ItemCategoryDTO updatedItemCategory = itemCategoryService.updateItemCategory(id, itemCategoryDTO);
-                return ResponseEntity.ok(updatedItemCategory);
-            } catch (UnauthorizedAccessException e) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            } catch (ResponseStatusException e) {
-                return ResponseEntity.status(e.getStatus()).body(null); // Return status from exception
-            }
-        }
-
-        /**
-         * Delete an existing ItemCategory.
-         *
-         * @param id ItemCategory ID
-         * @return ResponseEntity with status OK if deleted, or NOT_FOUND if not found
-         */
-        @DeleteMapping("/delete/{id}")
-        @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-        public ResponseEntity<Void> deleteItemCategory(@PathVariable Long id) {
-            try {
-                boolean isDeleted = itemCategoryService.deleteItemCategory(id);
-                if (isDeleted) {
-                    return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-                }
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-            } catch (UnauthorizedAccessException e) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            } catch (ResponseStatusException e) {
-                return ResponseEntity.status(e.getStatus()).build(); // Return status from exception
-            } catch (Exception e) {
-                // General error handler for unexpected exceptions
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-            }
-        }
-
-    /**
-     * Batch create ItemCategories.
-     *
-     * @param itemCategoryDTOs List of Data Transfer Objects (DTOs) for creating ItemCategories
-     * @return ResponseEntity with status code and list of created ItemCategoryDTOs
-     */
-    @PostMapping("/batch-create")
+    @PostMapping("/create")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<List<ItemCategoryDTO>> batchCreateItemCategories(@Valid @RequestBody List<ItemCategoryDTO> itemCategoryDTOs) {
+    public ResponseEntity<ItemCategoryDTO> createItemCategory(@Valid @RequestBody ItemCategoryDTO itemCategoryDTO) {
+        logger.debug("Received request to create item category: {}", itemCategoryDTO);
         try {
-            List<ItemCategoryDTO> createdItemCategories = itemCategoryService.batchCreateItemCategories(itemCategoryDTOs);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdItemCategories);
+            ItemCategoryDTO createdItemCategory = itemCategoryService.createItemCategory(itemCategoryDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdItemCategory);
         } catch (UnauthorizedAccessException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            logger.warn("Unauthorized access: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "UNAUTHORIZED");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
         } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatus()).body(null); // Return status from exception
+            logger.warn("Response status exception: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", e.getReason() != null ? e.getReason() : "ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(e.getStatus()).body(null);
+        } catch (Exception e) {
+            logger.error("Internal server error while creating item category", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "INTERNAL_SERVER_ERROR");
+            errorResponse.put("message", "Failed to create item category: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    /**
-     * Batch delete ItemCategories by their IDs.
-     *
-     * @param ids List of ItemCategory IDs
-     * @return ResponseEntity with status code indicating whether deletion was successful
-     */
-    @DeleteMapping("/batch-delete")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<Void> batchDeleteItemCategories(@RequestBody List<Long> ids) {
+    @GetMapping("/list")
+    public ResponseEntity<Map<String, Object>> getAllItemCategories(Pageable pageable) {
+        logger.info("Received request to list item categories, page: {}, size: {}",
+                pageable.getPageNumber(), pageable.getPageSize());
         try {
-            itemCategoryService.batchDeleteItemCategories(ids);
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+            Page<ItemCategoryDTO> page = itemCategoryService.getAllItemCategories(pageable);
+            Map<String, Object> response = new HashMap<>();
+            response.put("items", page.getContent());
+            response.put("currentPage", page.getNumber());
+            response.put("totalItems", page.getTotalElements());
+            response.put("totalPages", page.getTotalPages());
+            response.put("size", page.getSize());
+            logger.info("Returning {} item categories", page.getTotalElements());
+            return ResponseEntity.ok(response);
         } catch (UnauthorizedAccessException e) {
+            logger.warn("Unauthorized access: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "UNAUTHORIZED");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        } catch (ResponseStatusException e) {
+            logger.warn("Response status exception: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", e.getReason() != null ? e.getReason() : "ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(e.getStatus()).body(errorResponse);
+        } catch (Exception e) {
+            logger.error("Internal server error while fetching item categories", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "INTERNAL_SERVER_ERROR");
+            errorResponse.put("message", "Failed to fetch item categories: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ItemCategoryDTO> getItemCategoryById(@PathVariable Long id) {
+        logger.debug("Received request to fetch item category with ID: {}", id);
+        try {
+            ItemCategoryDTO itemCategoryDTO = itemCategoryService.getItemCategoryById(id);
+            return ResponseEntity.ok(itemCategoryDTO);
+        } catch (UnauthorizedAccessException e) {
+            logger.warn("Unauthorized access: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "UNAUTHORIZED");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        } catch (ResponseStatusException e) {
+            logger.warn("Response status exception: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", e.getReason() != null ? e.getReason() : "ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(e.getStatus()).body(null);
+        } catch (Exception e) {
+            logger.error("Internal server error while fetching item category ID: {}", id, e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "INTERNAL_SERVER_ERROR");
+            errorResponse.put("message", "Failed to fetch item category: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/update/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ItemCategoryDTO> updateItemCategory(
+            @PathVariable Long id, @Valid @RequestBody ItemCategoryDTO itemCategoryDTO) {
+        logger.debug("Received request to update item category with ID: {}", id);
+        try {
+            ItemCategoryDTO updatedItemCategory = itemCategoryService.updateItemCategory(id, itemCategoryDTO);
+            return ResponseEntity.ok(updatedItemCategory);
+        } catch (UnauthorizedAccessException e) {
+            logger.warn("Unauthorized access: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "UNAUTHORIZED");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        } catch (ResponseStatusException e) {
+            logger.warn("Response status exception: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", e.getReason() != null ? e.getReason() : "ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(e.getStatus()).body(null);
+        } catch (Exception e) {
+            logger.error("Internal server error while updating item category ID: {}", id, e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "INTERNAL_SERVER_ERROR");
+            errorResponse.put("message", "Failed to update item category: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @DeleteMapping("/delete/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> deleteItemCategory(@PathVariable Long id) {
+        logger.debug("Received request to delete item category with ID: {}", id);
+        try {
+            boolean isDeleted = itemCategoryService.deleteItemCategory(id);
+            if (isDeleted) {
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+            }
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (UnauthorizedAccessException e) {
+            logger.warn("Unauthorized access: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "UNAUTHORIZED");
+            errorResponse.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (ResponseStatusException e) {
+            logger.warn("Response status exception: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", e.getReason() != null ? e.getReason() : "ERROR");
+            errorResponse.put("message", e.getMessage());
             return ResponseEntity.status(e.getStatus()).build();
         } catch (Exception e) {
-            // General error handler for unexpected exceptions
+            logger.error("Internal server error while deleting item category ID: {}", id, e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "INTERNAL_SERVER_ERROR");
+            errorResponse.put("message", "Failed to delete item category: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
+    @PostMapping("/batch-create")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<List<ItemCategoryDTO>> batchCreateItemCategories(
+            @Valid @RequestBody List<ItemCategoryDTO> itemCategoryDTOs) {
+        logger.debug("Received request to batch create {} item categories", itemCategoryDTOs.size());
+        try {
+            List<ItemCategoryDTO> createdItemCategories = itemCategoryService.batchCreateItemCategories(itemCategoryDTOs);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdItemCategories);
+        } catch (UnauthorizedAccessException e) {
+            logger.warn("Unauthorized access: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "UNAUTHORIZED");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        } catch (ResponseStatusException e) {
+            logger.warn("Response status exception: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", e.getReason() != null ? e.getReason() : "ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(e.getStatus()).body(null);
+        } catch (Exception e) {
+            logger.error("Internal server error while batch creating item categories", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "INTERNAL_SERVER_ERROR");
+            errorResponse.put("message", "Failed to batch create item categories: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
+
+    @DeleteMapping("/batch-delete")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> batchDeleteItemCategories(@RequestBody List<Long> ids) {
+        logger.debug("Received request to batch delete {} item categories", ids.size());
+        try {
+            itemCategoryService.batchDeleteItemCategories(ids);
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        } catch (UnauthorizedAccessException e) {
+            logger.warn("Unauthorized access: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "UNAUTHORIZED");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (ResponseStatusException e) {
+            logger.warn("Response status exception: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", e.getReason() != null ? e.getReason() : "ERROR");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(e.getStatus()).build();
+        } catch (Exception e) {
+            logger.error("Internal server error while batch deleting item categories", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("errorCode", "INTERNAL_SERVER_ERROR");
+            errorResponse.put("message", "Failed to batch delete item categories: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+}

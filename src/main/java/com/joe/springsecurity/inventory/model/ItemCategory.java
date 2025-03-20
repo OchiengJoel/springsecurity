@@ -12,7 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "cms_item_categories")
+@Table(name = "cms_item_categories", uniqueConstraints = @UniqueConstraint(columnNames = {"name", "company_id"}))
 public class ItemCategory {
 
     @Id

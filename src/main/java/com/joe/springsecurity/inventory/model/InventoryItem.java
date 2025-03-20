@@ -30,8 +30,8 @@ public class InventoryItem {
     private String description;
 
     // Marking total_price as transient so it's not persisted in the database
-    @Transient
-    private double totalPrice;
+//    @Transient
+//    private double totalPrice;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
@@ -77,7 +77,7 @@ public class InventoryItem {
 
     public void setQuantity(int quantity) {
         this.quantity = quantity;
-        updateTotalPrice();
+        //updateTotalPrice();
     }
 
     public double getPrice() {
@@ -86,7 +86,7 @@ public class InventoryItem {
 
     public void setPrice(double price) {
         this.price = price;
-        updateTotalPrice();
+        //updateTotalPrice();
     }
 
     public String getDescription() {
@@ -119,7 +119,7 @@ public class InventoryItem {
     }
 
     // Private method to update the total price when quantity or price changes.
-    private void updateTotalPrice() {
-        this.totalPrice = getTotalPrice(); // Update the total price whenever quantity or price is changed
-    }
+//    private void updateTotalPrice() {
+//        this.totalPrice = getTotalPrice(); // Update the total price whenever quantity or price is changed
+//    }
 }

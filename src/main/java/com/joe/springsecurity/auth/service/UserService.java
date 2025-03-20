@@ -5,6 +5,8 @@ import com.joe.springsecurity.auth.repo.UserRepository;
 import com.joe.springsecurity.company.model.Company;
 import com.joe.springsecurity.company.repo.CompanyRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -13,28 +15,39 @@ public class UserService {
     private final AuthenticationService authenticationService;
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
+    private final JwtService jwtService;
 
     @Autowired
-    public UserService(AuthenticationService authenticationService, UserRepository userRepository, CompanyRepository companyRepository) {
+    public UserService(AuthenticationService authenticationService, UserRepository userRepository, CompanyRepository companyRepository, JwtService jwtService) {
         this.authenticationService = authenticationService;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
+        this.jwtService = jwtService;
     }
 
     // Retrieve the current logged-in user based on JWT or session
     public User getCurrentUser() {
-        String username = authenticationService.getCurrentUserUsername();
+        String username = authenticationService.getCurrentUser().getUsername();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     // Retrieve the current user's associated company (assuming a user has one or more companies)
     public Company getCurrentUserCompany() {
-        User user = getCurrentUser(); // Fetch current user
+        User user = getCurrentUser();
         if (user.getCompanies().isEmpty()) {
             throw new RuntimeException("User does not belong to any company");
         }
-        return user.getCompanies().iterator().next();  // Assuming user belongs to at least one company
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getCredentials() == null) {
+            throw new IllegalStateException("Authentication context is missing or invalid");
+        }
+        String token = authentication.getCredentials().toString();
+        Long jwtCompanyId = jwtService.extractCompanyId(token);
+        return user.getCompanies().stream()
+                .filter(company -> company.getId().equals(jwtCompanyId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("User not associated with company ID from JWT: " + jwtCompanyId));
     }
 
     // Assign a company to a user

@@ -12,6 +12,7 @@ import com.joe.springsecurity.company.repo.CompanyRepository;
 import com.joe.springsecurity.utils.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,300 +24,377 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.mail.MessagingException;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import javax.transaction.Transactional;
+import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Service for handling user authentication, registration, and company switching.
+ * Manages JWT token generation and persistence.
+ */
 @Service
+@Transactional
 public class AuthenticationService {
 
-        private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
 
-        private final UserRepository repository;
-        private final PasswordEncoder passwordEncoder;
-        private final JwtService jwtService;
-        private final TokenRepository tokenRepository;
-        private final AuthenticationManager authenticationManager;
-        private final CompanyRepository companyRepository; // Inject CompanyRepository to manage companies
-        private final UserRepository userRepository;
-        private final EmailService emailService;
-        private final PasswordResetTokenService passwordResetTokenService;
+    private final UserRepository repository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final TokenRepository tokenRepository;
+    private final AuthenticationManager authenticationManager;
+    private final CompanyRepository companyRepository;
+    private final EmailService emailService;
 
-        public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, TokenRepository tokenRepository, AuthenticationManager authenticationManager, CompanyRepository companyRepository, UserRepository userRepository, EmailService emailService, PasswordResetTokenService passwordResetTokenService) {
-            this.repository = repository;
-            this.passwordEncoder = passwordEncoder;
-            this.jwtService = jwtService;
-            this.tokenRepository = tokenRepository;
-            this.authenticationManager = authenticationManager;
-            this.companyRepository = companyRepository; // Initialize the Company repository
-            this.userRepository = userRepository;
-            this.emailService = emailService;
-            this.passwordResetTokenService = passwordResetTokenService;
+    @Autowired
+    public AuthenticationService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService,
+                                 TokenRepository tokenRepository, AuthenticationManager authenticationManager,
+                                 CompanyRepository companyRepository, EmailService emailService) {
+        this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.tokenRepository = tokenRepository;
+        this.authenticationManager = authenticationManager;
+        this.companyRepository = companyRepository;
+        this.emailService = emailService;
+    }
+
+    /**
+     * Registers a new user, assigns a default company, and generates tokens.
+     * @param request The user data to register.
+     * @return AuthenticationResponse with tokens and user details.
+     */
+    public AuthenticationResponse register(User request) {
+        logger.info("Registering new user: {}", request.getUsername());
+
+        // Check if username or email already exists
+        if (repository.findByUsername(request.getUsername()).isPresent()) {
+            logger.error("Username already exists: {}", request.getUsername());
+            throw new RuntimeException("Username already exists");
+        }
+        if (repository.findByEmail(request.getEmail()).isPresent()) {
+            logger.error("Email already exists: {}", request.getEmail());
+            throw new RuntimeException("Email already exists");
         }
 
-        public AuthenticationResponse authenticate(User request) {
-            // Authenticate the user's credentials
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getUsername(),
-                            request.getPassword()
-                    )
-            );
-
-            // Retrieve the user from the database
-            User user = repository.findByUsername(request.getUsername())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            // Ensure the user has companies assigned (they must be linked to at least one company)
-            if (user.getCompanies().isEmpty()) {
-                throw new RuntimeException("User does not belong to any company");
-            }
-
-            // Set the default company (you can customize this logic based on your needs)
-            Company defaultCompany = user.getCompanies().stream()
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("No companies assigned"));
-
-            // Generate new JWT tokens, passing both the user and the default company
-            String accessToken = jwtService.generateAccessToken(user, defaultCompany);
-            String refreshToken = jwtService.generateRefreshToken(user, defaultCompany);
-
-            // Revoke any existing tokens for the user
-            revokeAllTokensByUser(user);
-
-            // Save the new tokens in the database
-            saveUserToken(accessToken, refreshToken, user);
-
-            // Send email notification for successful login
-            String subject = "Login Notification";
-            String text = "Dear " + user.getFirstName() + ",\n\n" +
-                    "We noticed a successful sign-in to your CMS account: " + user.getEmail() + ".\n\n" +
-                    "If you signed-in recently, relax and know that you are safe! \n\n" +
-                    "But if you don’t recognize this sign-in, we recommend you change your password immediately or " +
-                    "contact your System Admin or support team. \n\n" +
-                    "Best Regards.";
-            try {
-                emailService.sendEmail(user.getEmail(), subject, text);
-            } catch (MessagingException e) {
-                logger.error("Error sending email to " + user.getEmail(), e);  // Handle email sending errors
-            }
-
-            // Return authentication response with tokens and the default company information
-            return new AuthenticationResponse(
-                    accessToken,
-                    refreshToken,
-                    "User login was successful",
-                    user.getEmail(),
-                    user.getFirstName(),
-                    user.getLastName(),
-                    user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
-                    user.getCompanies().stream().map(Company::getName).collect(Collectors.toList()),
-                    defaultCompany.getName() // Include default company in the response
-            );
+        // Encode password and set default role if not provided
+        request.setPassword(passwordEncoder.encode(request.getPassword()));
+        if (request.getRoles() == null || request.getRoles().isEmpty()) {
+            request.setRoles(Collections.singleton(Role.ROLE_USER)); // Default role
         }
 
-        public AuthenticationResponse register(User request) throws MessagingException {
-            // Check if the user already exists
-            if (repository.findByUsername(request.getUsername()).isPresent()) {
-                return new AuthenticationResponse(null, null, "User already exists", null, null,
-                        null, null, null, null);
-            }
+        // Assign a default company (e.g., first available or create a new one)
+        Company defaultCompany = assignDefaultCompany(request);
+        request.setCompanies(Collections.singleton(defaultCompany)); // Changed to singleton (Set)
 
-            // Create a new User
-            User user = new User();
-            user.setFirstName(request.getFirstName());
-            user.setLastName(request.getLastName());
-            user.setUsername(request.getUsername());
-            user.setEmail(request.getEmail());
-            user.setPassword(passwordEncoder.encode(request.getPassword()));  // Encode password securely
+        // Save the new user
+        User savedUser = repository.save(request);
+        logger.info("User registered successfully: {}", savedUser.getUsername());
 
-            // Set roles for the user
-            Set<Role> roles = request.getRoles();
-            if (roles == null || roles.isEmpty()) {
-                roles = new HashSet<>();
-                roles.add(Role.ROLE_USER);  // Default to ROLE_USER
-            }
-            user.setRoles(roles);
+        // Generate tokens
+        String accessToken = jwtService.generateAccessToken(savedUser, defaultCompany);
+        String refreshToken = jwtService.generateRefreshToken(savedUser, defaultCompany);
 
-            // Save the user to the database
-            user = repository.save(user);
+        // Save tokens
+        saveUserToken(accessToken, refreshToken, savedUser);
 
-            // Automatically assign a default company if none exists
-            if (companyRepository.count() == 0) {
-                Company companyA = new Company();
-                companyA.setName("Test Company Ltd");
-                companyRepository.save(companyA);
-            }
+        // Send welcome email
+        sendWelcomeEmail(savedUser);
 
-            // Assign the default company to the user
-            Company companyA = companyRepository.findByName("Test Company Ltd")
-                    .orElseThrow(() -> new RuntimeException("Company Not Found"));
-            user.getCompanies().add(companyA);
-            repository.save(user);
+        return buildAuthResponse(savedUser, accessToken, refreshToken, "User registered successfully", defaultCompany);
+    }
 
-            // Generate a password reset token
-            String resetToken = passwordResetTokenService.createPasswordResetToken(user);
+    /**
+     * Authenticates a user and generates access/refresh tokens with the default company.
+     * @param request User login credentials.
+     * @return AuthenticationResponse with tokens and user details.
+     */
+    public AuthenticationResponse authenticate(User request) {
+        logger.info("Authenticating user: {}", request.getUsername());
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
 
-            // Create the password reset URL
-            String resetLink = "https://yourdomain.com/reset-password?token=" + resetToken;
+        User user = repository.findByUsername(request.getUsername())
+                .orElseThrow(() -> {
+                    logger.error("User not found: {}", request.getUsername());
+                    return new RuntimeException("User not found");
+                });
 
-            // Send email with the password reset link
-            String subject = "Welcome to the system! Please reset your password";
-            String text = "Dear " + user.getFirstName() + " " + user.getLastName() + ",\n\n" +
-                    "Your account has been created successfully. Please click the link below to set your password:\n\n" +
-                    resetLink;
+        Company defaultCompany = getDefaultCompany(user);
+        String accessToken = jwtService.generateAccessToken(user, defaultCompany);
+        String refreshToken = jwtService.generateRefreshToken(user, defaultCompany);
 
-            emailService.sendEmail(user.getEmail(), subject, text);  // Send email asynchronously
+        revokeAllTokensByUser(user);
+        saveUserToken(accessToken, refreshToken, user);
 
-            // Generate JWT Tokens with the user and the assigned company
-            String accessToken = jwtService.generateAccessToken(user, companyA); // Pass the user and the company
-            String refreshToken = jwtService.generateRefreshToken(user, companyA); // Pass the user and the company
+        sendLoginNotification(user);
+        return buildAuthResponse(user, accessToken, refreshToken, "User login was successful", defaultCompany);
+    }
 
-            // Save the generated tokens
-            saveUserToken(accessToken, refreshToken, user);
+    /**
+     * Switches the user's active company and generates new tokens.
+     * @param companyId The ID of the company to switch to.
+     * @return AuthenticationResponse with new tokens and updated company details.
+     */
+    public AuthenticationResponse switchCompany(Long companyId) {
+        logger.info("Switching company to ID: {}", companyId);
+        User user = getCurrentUser();
 
-            // Return the authentication response with user and company details
-            return new AuthenticationResponse(
-                    accessToken,
-                    refreshToken,
-                    "User registration was successful",
-                    user.getEmail(),
-                    user.getFirstName(),
-                    user.getLastName(),
-                    user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
-                    user.getCompanies().stream().map(Company::getName).collect(Collectors.toList()),
-                    companyA.getName()  // Pass the default company here
-            );
+        Company newCompany = companyRepository.findById(companyId)
+                .orElseThrow(() -> {
+                    logger.error("Company not found with ID: {}", companyId);
+                    return new RuntimeException("Company not found with ID: " + companyId);
+                });
+
+        if (!user.getCompanies().contains(newCompany)) {
+            logger.error("User {} not associated with company: {}", user.getUsername(), newCompany.getName());
+            throw new RuntimeException("User is not associated with company: " + newCompany.getName());
         }
 
-        // Assign a new role to a user
-        public String assignRoleToUser(Long userId, Role role) {
-            User user = repository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+        revokeAllTokensByUser(user);
+        String accessToken = jwtService.generateAccessToken(user, newCompany);
+        String refreshToken = jwtService.generateRefreshToken(user, newCompany);
+        saveUserToken(accessToken, refreshToken, user);
 
-            // Ensure that roles are added correctly
-            if (user.getRoles().contains(role)) {
-                return "User already has the role: " + role;
-            }
+        sendCompanySwitchNotification(user, newCompany);
+        return buildAuthResponse(user, accessToken, refreshToken, "Company switched to " + newCompany.getName(), newCompany);
+    }
 
-            user.getRoles().add(role);  // Add the role
-            repository.save(user);  // Save user to persist the role
+    /**
+     * Assigns a default company to a new user (e.g., a placeholder or existing company).
+     * @param user The user to assign a company to.
+     * @return The default Company entity.
+     */
+    private Company assignDefaultCompany(User user) {
+        // Example: Create a new default company or fetch an existing one
+        Company defaultCompany = new Company();
+        defaultCompany.setName(user.getUsername() + "'s Default Company"); // Customize as needed
+        defaultCompany.setPrimaryEmail(user.getEmail());
+        defaultCompany.setStatus(true);
+        return companyRepository.save(defaultCompany);
+    }
 
-            return "Role " + role + " assigned to user " + user.getUsername();
+    /**
+     * Gets the currently authenticated from the security context.
+     * @return The current User entity.
+     */
+    public User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            logger.error("No authenticated user found");
+            throw new RuntimeException("User is not authenticated");
         }
+        String username = authentication.getName();
+        return repository.findByUsername(username)
+                .orElseThrow(() -> {
+                    logger.error("User not found in repository: {}", username);
+                    return new RuntimeException("User not found");
+                });
+    }
 
-        // Remove a role from a user
-        public String removeRoleFromUser(Long userId, Role role) {
-            User user = repository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            if (!user.getRoles().contains(role)) {
-                return "User does not have the role: " + role;
-            }
-
-            // Remove the role from the user's roles set
-            user.getRoles().remove(role);
-
-            if (user.getRoles().isEmpty()) {
-                user.getRoles().add(Role.ROLE_USER);  // Assign default role
-            }
-
-            repository.save(user);
-            return "Role " + role + " removed from user " + user.getUsername();
-        }
-
-        // Revoke all existing tokens for a user
-        private void revokeAllTokensByUser(User user) {
-            List<Token> validTokens = tokenRepository.findAllAccessTokensByUser(user.getId());
-            if (validTokens.isEmpty()) {
-                return;
-            }
-
-            validTokens.forEach(t -> t.setLoggedOut(true));
-            tokenRepository.saveAll(validTokens);
-        }
-
-        // Save new tokens for the user
-        private void saveUserToken(String accessToken, String refreshToken, User user) {
-            Token token = new Token();
-            token.setAccessToken(accessToken);
-            token.setRefreshToken(refreshToken);
-            token.setLoggedOut(false);
-            token.setUser(user);
-            tokenRepository.save(token);
-        }
-
-    // Refresh token
-    public ResponseEntity refreshToken(HttpServletRequest request, HttpServletResponse response) {
-        String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-        }
-
-        String token = authHeader.substring(7); // Extract token
-
-        String username = jwtService.extractUsername(token); // Extract username from token
-
-        User user = repository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("No user found"));
-
-        // Ensure the user has at least one company assigned
+    /**
+     * Retrieves the default company for a user (first in the list).
+     * @param user The user to get the default company for.
+     * @return The default Company entity.
+     */
+    private Company getDefaultCompany(User user) {
         if (user.getCompanies().isEmpty()) {
+            logger.error("User {} has no associated companies", user.getUsername());
             throw new RuntimeException("User does not belong to any company");
         }
-
-        // Set the default company (you can customize this logic based on your needs)
-        Company defaultCompany = user.getCompanies().stream()
+        return user.getCompanies().stream()
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("No companies assigned"));
+                .orElseThrow(() -> {
+                    logger.error("No companies assigned to user: {}", user.getUsername());
+                    return new RuntimeException("No companies assigned");
+                });
+    }
 
-        // Check if the refresh token is valid
-        if (jwtService.isValidRefreshToken(token, user)) {
-            // Generate new JWT tokens, passing both the user and the default company
-            String accessToken = jwtService.generateAccessToken(user, defaultCompany);
-            String refreshToken = jwtService.generateRefreshToken(user, defaultCompany);
+    /**
+     * Builds an AuthenticationResponse with user and company details.
+     * @param user The authenticated user.
+     * @param accessToken The new access token.
+     * @param refreshToken The new refresh token.
+     * @param message The response message.
+     * @param company The active company.
+     * @return AuthenticationResponse object.
+     */
+    private AuthenticationResponse buildAuthResponse(User user, String accessToken, String refreshToken,
+                                                     String message, Company company) {
+        List<String> companyNames = user.getCompanies().stream().map(Company::getName).collect(Collectors.toList());
+        List<Long> companyIds = user.getCompanies().stream().map(Company::getId).collect(Collectors.toList());
+        return new AuthenticationResponse(
+                accessToken, refreshToken, message, user.getEmail(), user.getFirstName(), user.getLastName(),
+                user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
+                companyNames, company.getName(), companyIds);
+    }
 
-            revokeAllTokensByUser(user);
-            saveUserToken(accessToken, refreshToken, user);
-
-            return ResponseEntity.ok(new AuthenticationResponse(
-                    accessToken,
-                    refreshToken,
-                    "New tokens generated", // Adjusted message to be more appropriate
-                    user.getEmail(),
-                    user.getFirstName(),
-                    user.getLastName(),
-                    user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
-                    user.getCompanies().stream().map(Company::getName).collect(Collectors.toList()),
-                    defaultCompany.getName() // Pass the default company in the response
-            ));
+    /**
+     * Revokes all existing tokens for a user.
+     * @param user The user whose tokens should be revoked.
+     */
+    private void revokeAllTokensByUser(User user) {
+        List<Token> validTokens = tokenRepository.findAllAccessTokensByUser(user.getId());
+        if (!validTokens.isEmpty()) {
+            validTokens.forEach(t -> t.setLoggedOut(true));
+            tokenRepository.saveAll(validTokens);
+            logger.info("Revoked {} tokens for user: {}", validTokens.size(), user.getUsername());
         }
+    }
 
-        return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+    /**
+     * Saves new access and refresh tokens for a user.
+     * @param accessToken The access token.
+     * @param refreshToken The refresh token.
+     * @param user The user to associate the tokens with.
+     */
+    private void saveUserToken(String accessToken, String refreshToken, User user) {
+        Token token = new Token();
+        token.setAccessToken(accessToken);
+        token.setRefreshToken(refreshToken);
+        token.setLoggedOut(false);
+        token.setUser(user);
+        token.setExpirationDate(jwtService.extractExpiration(accessToken));
+        tokenRepository.save(token);
+        logger.debug("Saved new token for user: {}", user.getUsername());
+    }
+
+    /**
+     * Sends a welcome email to the newly registered user.
+     * @param user The user to notify.
+     */
+    private void sendWelcomeEmail(User user) {
+        String subject = "Welcome to CMS";
+        String text = String.format("Dear %s,\n\nWelcome to CMS! Your account has been successfully created.\n\n" +
+                        "Username: %s\nEmail: %s\n\nPlease log in to get started.\n\nBest Regards.",
+                user.getFirstName(), user.getUsername(), user.getEmail());
+        try {
+            emailService.sendEmail(user.getEmail(), subject, text);
+            logger.info("Welcome email sent to: {}", user.getEmail());
+        } catch (MessagingException e) {
+            logger.error("Failed to send welcome email to {}: {}", user.getEmail(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Sends a login notification email to the user.
+     * @param user The user to notify.
+     */
+    private void sendLoginNotification(User user) {
+        String subject = "Login Notification";
+        String text = String.format("Dear %s,\n\nWe noticed a successful sign-in to your CMS account: %s.\n\n" +
+                        "If you signed in recently, relax and know that you are safe!\n\n" +
+                        "If you don’t recognize this sign-in, change your password immediately or contact support.\n\nBest Regards.",
+                user.getFirstName(), user.getEmail());
+        try {
+            emailService.sendEmail(user.getEmail(), subject, text);
+            logger.info("Login notification sent to: {}", user.getEmail());
+        } catch (MessagingException e) {
+            logger.error("Failed to send login notification to {}: {}", user.getEmail(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Sends a company switch notification email to the user.
+     * @param user The user to notify.
+     * @param company The newly selected company.
+     */
+    private void sendCompanySwitchNotification(User user, Company company) {
+        String subject = "Company Switch Notification";
+        String text = String.format("Dear %s,\n\nYou have successfully switched to company: %s.\n\n" +
+                        "If this was not you, please contact support immediately.\n\nBest Regards.",
+                user.getFirstName(), company.getName());
+        try {
+            emailService.sendEmail(user.getEmail(), subject, text);
+            logger.info("Company switch notification sent to: {}", user.getEmail());
+        } catch (MessagingException e) {
+            logger.error("Failed to send company switch notification to {}: {}", user.getEmail(), e.getMessage(), e);
+        }
     }
 
 
+    /**
+     * Refreshes the access token using the refresh token from the request cookie.
+     * @param request HTTP request containing the refresh token cookie.
+     * @param response HTTP response to update the refresh token if needed.
+     * @return ResponseEntity with new AuthenticationResponse or error status.
+     */
+    public ResponseEntity<AuthenticationResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        logger.info("Processing refresh token request");
 
-    // This method will get the current user's username from the JWT token
-        public String getCurrentUserUsername() {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null) {
-                throw new RuntimeException("User is not authenticated");
+        // Extract refresh token from cookie
+        String refreshToken = extractRefreshTokenFromCookie(request);
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            logger.warn("No refresh token found in request cookies");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthenticationResponse(null, null, "Refresh token is missing"));
+        }
+
+        // Extract username from token
+        String username = jwtService.extractUsername(refreshToken);
+        if (username == null) {
+            logger.warn("Invalid refresh token: no username found");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthenticationResponse(null, null, "Invalid refresh token"));
+        }
+
+        // Fetch user
+        User user = repository.findByUsername(username)
+                .orElseThrow(() -> {
+                    logger.error("User not found for refresh token: {}", username);
+                    return new RuntimeException("User not found");
+                });
+
+        // Validate refresh token using JwtService's isValidRefreshToken
+        if (!jwtService.isValidRefreshToken(refreshToken, user)) {
+            logger.warn("Invalid or expired refresh token for user: {}", username);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthenticationResponse(null, null, "Invalid or expired refresh token"));
+        }
+
+        // Get current company from token (since your tokens include companyId)
+        Long companyId = jwtService.extractCompanyId(refreshToken);
+        Company currentCompany = companyRepository.findById(companyId)
+                .orElseThrow(() -> {
+                    logger.error("Company not found for ID: {}", companyId);
+                    return new RuntimeException("Company not found");
+                });
+
+        // Generate new tokens
+        String newAccessToken = jwtService.generateAccessToken(user, currentCompany);
+        String newRefreshToken = jwtService.generateRefreshToken(user, currentCompany);
+
+        // Revoke old token and save new ones
+        revokeAllTokensByUser(user);
+        saveUserToken(newAccessToken, newRefreshToken, user);
+
+        logger.info("Tokens refreshed successfully for user: {}", username);
+        return ResponseEntity.ok(buildAuthResponse(user, newAccessToken, newRefreshToken, "Tokens refreshed successfully", currentCompany));
+    }
+
+
+    /**
+     * Extracts the refresh token from the request cookies.
+     * @param request HTTP request containing cookies.
+     * @return The refresh token string or null if not found.
+     */
+    private String extractRefreshTokenFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("refresh_token".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
             }
-            return authentication.getName();  // Get the username from the SecurityContext
         }
-
-        // You can also add this method to get the current user, if needed
-        public User getCurrentUser() {
-            String username = getCurrentUserUsername();
-            return userRepository.findByUsername(username)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-        }
+        return null;
     }
+
+}
+
 
 
 //    // User Authentication

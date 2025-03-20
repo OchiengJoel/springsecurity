@@ -3,6 +3,7 @@ package com.joe.springsecurity.auth.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class AuthenticationResponse {
 
@@ -22,7 +23,7 @@ public class AuthenticationResponse {
     private String firstName;
 
     @JsonProperty("lastName")
-    private  String lastName;
+    private String lastName;
 
     @JsonProperty("roles")
     private List<String> roles;
@@ -30,13 +31,16 @@ public class AuthenticationResponse {
     @JsonProperty("companies")
     private List<String> companies;
 
-    private String defaultCompany; // New field to store the default company
+    @JsonProperty("defaultCompany")
+    private String defaultCompany;
 
+    @JsonProperty("companyIds")
+    private List<Long> companyIds;
 
-    // Constructor updated to include defaultCompany
+    // Full constructor for successful responses
     public AuthenticationResponse(String accessToken, String refreshToken, String message, String email,
-                                  String firstName, String lastName, List<String> roles, List<String> companies,
-                                  String defaultCompany) {
+                                  String firstName, String lastName, List<String> roles,
+                                  List<String> companies, String defaultCompany, List<Long> companyIds) {
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.message = message;
@@ -46,15 +50,17 @@ public class AuthenticationResponse {
         this.roles = roles;
         this.companies = companies;
         this.defaultCompany = defaultCompany;
+        this.companyIds = companyIds;
     }
 
+    // Minimal constructor for error cases
+    public AuthenticationResponse(String accessToken, String refreshToken, String message) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.message = message;
+    }
 
-//    public AuthenticationResponse(String accessToken, String refreshToken, String message) {
-//        this.accessToken = accessToken;
-//        this.message = message;
-//        this.refreshToken = refreshToken;
-//    }
-
+    // Getters and Setters
     public String getAccessToken() {
         return accessToken;
     }
@@ -93,5 +99,13 @@ public class AuthenticationResponse {
 
     public void setDefaultCompany(String defaultCompany) {
         this.defaultCompany = defaultCompany;
+    }
+
+    public List<Long> getCompanyIds() {
+        return companyIds;
+    }
+
+    public void setCompanyIds(List<Long> companyIds) {
+        this.companyIds = companyIds;
     }
 }

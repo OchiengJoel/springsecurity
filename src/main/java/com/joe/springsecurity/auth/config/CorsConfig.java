@@ -7,10 +7,11 @@ public class CorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // Allow CORS requests from your frontend
-        registry.addMapping("/**")
-                .allowedOrigins("http://localhost:4200")  // Your frontend URL
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH")  // Allowed HTTP methods
-                .allowedHeaders("*");  // Allow all headers
+        registry.addMapping("/api/v2/auth/**")
+                .allowedOrigins("http://localhost:4200")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)  // Enable credentials for cookies
+                .maxAge(3600);  // Cache preflight response for 1 hour
     }
 }

@@ -43,6 +43,11 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    // Method to extract the companyId from the token
+    public Long extractCompanyId(String token) {
+        return extractClaim(token, claims -> claims.get("companyId", Long.class));
+    }
+
     // Method to validate the access token
     public boolean isValid(String token, UserDetails user) {
         String username = extractUsername(token);
@@ -70,10 +75,6 @@ public class JwtService {
     }
 
     // Check if the token has expired
-//    private boolean isTokenExpired(String token) {
-//        return extractExpiration(token).before(new Date());
-//    }
-
     public boolean isTokenExpired(String token) {
         Date expiration = extractExpiration(token);
         Date now = new Date();
@@ -85,7 +86,7 @@ public class JwtService {
     }
 
     // Extract expiration from the token
-    private Date extractExpiration(String token) {
+    public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
@@ -99,7 +100,7 @@ public class JwtService {
     private Claims extractAllClaims(String token) {
         return Jwts
                 .parserBuilder()
-                .setSigningKey(SECRET_KEY)  // Use the generated HS512 key
+                .setSigningKey(SECRET_KEY)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -112,7 +113,7 @@ public class JwtService {
 
     // Generate the refresh token for the user
     public String generateRefreshToken(User user, Company currentCompany) {
-        logger.info("Generating access token for user: {}", user.getUsername());
+        logger.info("Generating refresh token for user: {}", user.getUsername());
         return generateToken(user, currentCompany, refreshTokenExpire);
     }
 
@@ -121,13 +122,14 @@ public class JwtService {
                 .setSubject(user.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expireTime))
-                .claim("company", currentCompany.getName())  // Include company in token
+                .claim("companyId", currentCompany.getId())  // Store companyId instead of name
+                .claim("companyName", currentCompany.getName())  // Optional: keep name for convenience
                 .signWith(SECRET_KEY)
                 .compact();
     }
 
     // Get the signing key (HS512) for the JWT
     private SecretKey getSigninKey() {
-        return SECRET_KEY;  // Return the generated HS512 key
+        return SECRET_KEY;
     }
 }

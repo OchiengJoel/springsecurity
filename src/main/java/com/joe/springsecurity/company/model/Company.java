@@ -39,7 +39,7 @@ public class Company implements Serializable {
 
     private String registration;
 
-    private String tax_id;
+    private String tax_id;    
 
     private boolean status = true; //Default to true(enabled)
 

@@ -15,4 +15,9 @@ public interface ItemCategoryRepository extends JpaRepository<ItemCategory, Long
     Optional<ItemCategory> findByName(String name);
 
     Page<ItemCategory> findByCompany(Company company, Pageable pageable);
+
+    //Checks for an ItemCategory by both name and company:
+    Optional<ItemCategory> findByCompanyAndName(Company company, String name);
+
+    long countByCompany(Company company);
 }
