@@ -8,6 +8,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 
 @Repository
 public interface InventoryItemRepository extends JpaRepository<InventoryItem, Long> {
@@ -19,6 +21,10 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, Lo
 
     // Method to count inventory items by company
     long countByCompany(Company company);
+
+    long countByCompanyId(Long companyId);
+
+    List<InventoryItem> findByCompanyId(Long companyId);
 
     // Custom method to find InventoryItems by Company and ItemCategory with pagination
     Page<InventoryItem> findByCompanyAndItemCategory(Company company, ItemCategory itemCategory, Pageable pageable);

@@ -16,11 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -151,6 +155,28 @@ public class AuthenticationController {
             logger.error("Error switching company: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new AuthenticationResponse(null, null, e.getMessage()));
+        }
+    }
+
+    /**
+     * Verifies the user's password for unlocking the session.
+     * @param request User credentials (username and password).
+     * @return ResponseEntity with JSON response indicating success or failure.
+     */
+    @PostMapping("/verify-password")
+    public ResponseEntity<Map<String, String>> verifyPassword(@RequestBody User request) {
+        logger.info("Verifying password for username: {}", request.getUsername());
+        try {
+            authService.verifyPassword(request.getUsername(), request.getPassword());
+            logger.info("Password verified successfully for username: {}", request.getUsername());
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Password verified");
+            return ResponseEntity.ok(response); // Return JSON
+        } catch (AuthenticationException e) {
+            logger.warn("Password verification failed for username: {}", request.getUsername());
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Invalid password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response); // Return JSON
         }
     }
 

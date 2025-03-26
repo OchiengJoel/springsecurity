@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -226,10 +227,13 @@ public class AuthenticationService {
                                                      String message, Company company) {
         List<String> companyNames = user.getCompanies().stream().map(Company::getName).collect(Collectors.toList());
         List<Long> companyIds = user.getCompanies().stream().map(Company::getId).collect(Collectors.toList());
-        return new AuthenticationResponse(
+        AuthenticationResponse response = new AuthenticationResponse(
                 accessToken, refreshToken, message, user.getEmail(), user.getFirstName(), user.getLastName(),
                 user.getRoles().stream().map(Role::name).collect(Collectors.toList()),
-                companyNames, company.getName(), companyIds);
+                companyNames, company.getName(), companyIds
+        );
+        response.setUsername(user.getUsername()); // Add this line
+        return response;
     }
 
     /**
@@ -391,6 +395,19 @@ public class AuthenticationService {
             }
         }
         return null;
+    }
+
+    /**
+     * Verifies the user's password.
+     * @param username The username of the user.
+     * @param password The password to verify.
+     * @throws AuthenticationException if verification fails.
+     */
+    public void verifyPassword(String username, String password) throws AuthenticationException {
+        logger.debug("Verifying password for username: {}", username);
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, password)
+        );
     }
 
 }

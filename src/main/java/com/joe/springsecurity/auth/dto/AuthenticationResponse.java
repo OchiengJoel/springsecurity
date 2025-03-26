@@ -37,6 +37,9 @@ public class AuthenticationResponse {
     @JsonProperty("companyIds")
     private List<Long> companyIds;
 
+    @JsonProperty("username")
+    private String username;
+
     // Full constructor for successful responses
     public AuthenticationResponse(String accessToken, String refreshToken, String message, String email,
                                   String firstName, String lastName, List<String> roles,
@@ -51,6 +54,7 @@ public class AuthenticationResponse {
         this.companies = companies;
         this.defaultCompany = defaultCompany;
         this.companyIds = companyIds;
+        this.username = null;
     }
 
     // Minimal constructor for error cases
@@ -108,4 +112,7 @@ public class AuthenticationResponse {
     public void setCompanyIds(List<Long> companyIds) {
         this.companyIds = companyIds;
     }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 }
